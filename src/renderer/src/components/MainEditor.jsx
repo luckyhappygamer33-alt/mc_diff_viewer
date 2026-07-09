@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import JSZip from 'jszip'
 import * as Diff from 'diff'
+import FilePicker from './FilePicker'
 
 function groupByPackage(tree, files, tag) {
     for (const path of files) {
@@ -50,6 +51,9 @@ function MainEditor({ project, onProjectChange }) {
     const [fileContents, setFileContents] = useState({ a: null, b: null })
     const [zips, setZips] = useState({ a: null, b: null })
     const [diff, setDiff] = useState(null)
+    const [showFilePicker, setShowFilePicker] = useState(false)
+    const [selectedPairs, setSelectedPairs] = useState({})
+    const [hoveredLine, setHoveredLine] = useState(null)
 
     useEffect(() => {
         loadJars()
@@ -106,7 +110,7 @@ function MainEditor({ project, onProjectChange }) {
                 .filter(f => f.tag !== null)
             // console.log('Tagged files:', taggedFiles.slice(0, 5))
 
-            const folders = Object.keys(tree)
+            // const folders = Object.keys(tree)
             // console.log('Total folders:', folders.length)
             // console.log('First 3 folders:', folders.slice(0, 3))
             // console.log('Files in first folder:', tree[folders[0]])
@@ -148,8 +152,48 @@ function MainEditor({ project, onProjectChange }) {
         }
     }
 
+    const handleFilePickerConfirm = async (selectedPaths) => {
+        // compute hashes for newly selected files
+        for (const filePath of selectedPaths) {
+            if (!fileHashes[filePath]) {  // skip if already computed
+                const contentA = await zips.a.files[filePath].async('string')
+                const contentB = await zips.b.files[filePath].async('string')
+                const hashA = await hashString(contentA)
+                const hashB = await hashString(contentB)
+                const changed = hashA !== hashB
+                setFileHashes(prev => ({ ...prev, [filePath]: { hashA, hashB, changed } }))
+            }
+        }
+
+        setSelectedPairs(prev => {
+            const grouped = { ...prev }
+            groupByPackage(grouped, selectedPaths, null)
+            for (const folder of Object.keys(grouped)) {
+                grouped[folder].sort((a, b) => a.fileName.localeCompare(b.fileName))
+            }
+            return grouped
+        })
+        setShowFilePicker(false)
+    }
+
     if (!fileTree) {
         return <div>Loading jars...</div>
+    }
+
+    const selectedPairsSet = new Set(Object.entries(selectedPairs).flatMap(([path, files]) =>
+        files.map(({ fileName }) => path + '/' + fileName)
+    ))
+    const availableTree = {}
+    for (const [folder, files] of Object.entries(fileTree.tree)) {
+        const available = files.filter(({ fileName }) =>
+            !selectedPairsSet.has(folder + '/' + fileName)
+        )
+
+        available.sort((a, b) => a.fileName.localeCompare(b.fileName))
+
+        if (available.length > 0) {
+            availableTree[folder] = available
+        }
     }
 
     return (
@@ -158,7 +202,9 @@ function MainEditor({ project, onProjectChange }) {
             {/* Left panel - file tree */}
             <div style={{ width: '300px', height: '100vh', overflowY: 'auto', borderRight: '1px solid #444', padding: '8px', flexShrink: 0 }}>
                 <h3 style={{ margin: '0 0 8px 0' }}>{project.name}</h3>
-                {Object.keys(fileTree.tree).sort().map(folder => (
+                <h4>Files</h4>
+                <button onClick={() => setShowFilePicker(true)}>+ Add Files</button>
+                {Object.keys(selectedPairs).sort().map(folder => (
                     <div key={folder}>
                         <div
                             onClick={() => toggleFolder(folder)}
@@ -168,18 +214,29 @@ function MainEditor({ project, onProjectChange }) {
                         </div>
                         {openFolders[folder] && (
                             <div style={{ paddingLeft: '16px' }}>
-                                {fileTree.tree[folder].map(({ fileName, tag }) => (
+                                {selectedPairs[folder].map(({ fileName, tag }) => (
                                     <div
                                         key={fileName}
                                         style={{ padding: '2px 4px', cursor: tag === null ? 'pointer' : 'default', color: fileHashes[folder + '/' + fileName]?.changed ? '#f87171' : 'inherit' }}
-                                        onClick={() => {
-                                            if (tag !== null) return
-                                            const fullPath = folder + '/' + fileName
-                                            setSelectedFile(fullPath)
-                                            openFile(fullPath)
-                                        }}
-                                    >
-                                        {fileName}
+                                    ><span style={{ cursor: 'pointer', flex: 1 }} onClick={() => {
+                                        const fullPath = folder + '/' + fileName
+                                        setSelectedFile(fullPath)
+                                        openFile(fullPath)
+                                    }}>{fileName}</span>
+
+                                        <span
+                                            style={{ cursor: 'pointer', color: '#888', fontSize: '10px', marginLeft: '4px' }}
+                                            onClick={() => {
+                                                setSelectedPairs(prev => {
+                                                    const updated = { ...prev }
+                                                    updated[folder] = updated[folder].filter(f => f.fileName !== fileName)
+                                                    if (updated[folder].length === 0) delete updated[folder]
+                                                    return updated
+                                                })
+                                            }}
+                                        >
+                                            ✕
+                                        </span>
                                         {tag && (
                                             <span style={{ marginLeft: '6px', fontSize: '10px', color: tag === 'A' ? '#f87171' : '#60a5fa' }}>
                                                 [{tag}]
@@ -207,12 +264,15 @@ function MainEditor({ project, onProjectChange }) {
                                 {project.versionA.label} — {selectedFile}
                             </div>
                             {diff.map((line, i) => (
-                                <pre key={i} style={{
-                                    margin: 0,
-                                    fontSize: '12px',
-                                    backgroundColor: line.removed ? 'rgb(190, 66, 66)' : line.added ? 'rgba(71, 171, 110, 0.15)' : 'transparent',
-                                    whiteSpace: 'pre-wrap'
-                                }}>
+                                <pre key={`a-${i}`}
+                                    onMouseEnter={() => setHoveredLine(i)}
+                                    onMouseLeave={() => setHoveredLine(null)} style={{
+                                        margin: 0,
+                                        fontSize: '12px',
+                                        backgroundColor: line.removed ? 'rgb(190, 66, 66)' : line.added ? 'rgba(71, 171, 110, 0.15)' : 'transparent',
+                                        whiteSpace: 'pre-wrap',
+                                        outline: hoveredLine === i ? '1px solid yellow' : 'none'
+                                    }}>
                                     {line.added ? ' ' : line.line || ' '}
                                 </pre>
                             ))}
@@ -224,12 +284,15 @@ function MainEditor({ project, onProjectChange }) {
                                 {project.versionB.label} — {selectedFile}
                             </div>
                             {diff.map((line, i) => (
-                                <pre key={i} style={{
-                                    margin: 0,
-                                    fontSize: '12px',
-                                    backgroundColor: line.added ? 'rgb(71, 171, 110)' : line.removed ? 'rgba(190, 66, 66, 0.15)' : 'transparent',
-                                    whiteSpace: 'pre-wrap'
-                                }}>
+                                <pre key={`a-${i}`}
+                                    onMouseEnter={() => setHoveredLine(i)}
+                                    onMouseLeave={() => setHoveredLine(null)} style={{
+                                        margin: 0,
+                                        fontSize: '12px',
+                                        backgroundColor: line.added ? 'rgb(71, 171, 110)' : line.removed ? 'rgba(190, 66, 66, 0.15)' : 'transparent',
+                                        whiteSpace: 'pre-wrap',
+                                        outline: hoveredLine === i ? '1px solid yellow' : 'none'
+                                    }}>
                                     {line.removed ? ' ' : line.line || ' '}
                                 </pre>
                             ))}
@@ -237,6 +300,14 @@ function MainEditor({ project, onProjectChange }) {
                     </>
                 )}
             </div>
+
+            {showFilePicker && (
+                <FilePicker
+                    fileTree={availableTree}
+                    onConfirm={handleFilePickerConfirm}
+                    onClose={() => setShowFilePicker(false)}
+                />
+            )}
 
         </div>
     )
