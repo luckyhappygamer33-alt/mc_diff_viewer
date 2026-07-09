@@ -1,34 +1,57 @@
-import Versions from './components/Versions'
-import electronLogo from './assets/electron.svg'
+/* eslint-disable */
+import { useState } from 'react'
+import WelcomeScreen from './components/WelcomeScreen'
+import SetupWizard from './components/SetupWizard'
+import MainEditor from './components/MainEditor'
 
 function App() {
-  const ipcHandle = () => window.electron.ipcRenderer.send('ping')
+  // Which screen is currently shown
+  const [screen, setScreen] = useState('welcome')
 
-  return (
-    <>
-      <img alt="logo" className="logo" src={electronLogo} />
-      <div className="creator">Powered by electron-vite</div>
-      <div className="text">
-        Build an Electron app with <span className="react">React</span>
-      </div>
-      <p className="tip">
-        Please try pressing <code>F12</code> to open the devTool
-      </p>
-      <div className="actions">
-        <div className="action">
-          <a href="https://electron-vite.org/" target="_blank" rel="noreferrer">
-            Documentation
-          </a>
-        </div>
-        <div className="action">
-          <a target="_blank" rel="noreferrer" onClick={ipcHandle}>
-            Send IPC
-          </a>
-        </div>
-      </div>
-      <Versions></Versions>
-    </>
-  )
+  // The active project data — null until a project is created or loaded
+  const [project, setProject] = useState(null)
+
+  // Called when user clicks "New Project" on welcome screen
+  const handleNewProject = () => {
+    setScreen('setup')
+  }
+
+  // Called when user clicks "Open Existing Project" on welcome screen
+  const handleOpenProject = async () => {
+    const path = await window.api.pickProject()
+    if (!path) return
+
+    const content = await window.api.readFile(path)
+    if (!content) return
+
+    try {
+      const projectData = JSON.parse(content)
+      // Remember where this project was loaded from so we can save back to it
+      projectData.savedPath = path
+      setProject(projectData)
+      setScreen('editor')
+    } catch (e) {
+      console.error('Failed to parse project file:', e)
+    }
+  }
+
+  // Called when SetupWizard finishes — hands off the new project data
+  const handleProjectReady = (projectData) => {
+    setProject(projectData)
+    setScreen('editor')
+  }
+
+  if (screen === 'welcome') {
+    return <WelcomeScreen onNewProject={handleNewProject} onOpenProject={handleOpenProject} />
+  }
+
+  if (screen === 'setup') {
+    return <SetupWizard onProjectReady={handleProjectReady} onBack={() => setScreen('welcome')} />
+  }
+
+  if (screen === 'editor') {
+    return <MainEditor project={project} onProjectChange={setProject} />
+  }
 }
 
-export default App
+export default App;

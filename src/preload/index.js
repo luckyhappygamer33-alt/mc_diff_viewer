@@ -1,20 +1,19 @@
-import { contextBridge } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
+/* eslint-disable */
+import { contextBridge, ipcRenderer } from 'electron'
 
-// Custom APIs for renderer
-const api = {}
-
-// Use `contextBridge` APIs to expose Electron APIs to
-// renderer only if context isolation is enabled, otherwise
-// just add to the DOM global.
-if (process.contextIsolated) {
+const safeInvoke = async (channel, ...args) => {
   try {
-    contextBridge.exposeInMainWorld('electron', electronAPI)
-    contextBridge.exposeInMainWorld('api', api)
+    return await ipcRenderer.invoke(channel, ...args)
   } catch (error) {
-    console.error(error)
+    console.error(`IPC error on channel '${channel}':`, error)
+    return null
   }
-} else {
-  window.electron = electronAPI
-  window.api = api
 }
+
+contextBridge.exposeInMainWorld('api', {
+  pickJar: () => safeInvoke('pick-jar'),
+  readJar: (filePath) => safeInvoke('read-jar', filePath),
+  pickProject: () => safeInvoke('pick-project'),
+  readFile: (filePath) => safeInvoke('read-file', filePath),
+  saveProject: (content) => safeInvoke('save-project', content)
+})
