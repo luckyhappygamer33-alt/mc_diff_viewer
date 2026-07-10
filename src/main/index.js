@@ -3,6 +3,7 @@ import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { readFileSync } from 'fs'
+import { writeFileSync} from 'fs'
 import icon from '../../resources/icon.png?asset'
 
 function createWindow() {
@@ -78,7 +79,6 @@ ipcMain.handle('save-project', async (_event, content) => {
     defaultPath: 'project.mcmig'
   })
   if (result.canceled) return null
-  const { writeFileSync } = await import('fs')
   writeFileSync(result.filePath, content, 'utf-8')
   return result.filePath
 })

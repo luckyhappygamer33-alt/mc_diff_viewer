@@ -42,7 +42,7 @@ function diffLines(a, b) {
     return result
 }
 
-function MainEditor({ project, onProjectChange }) {
+function MainEditor({ project, onProjectChange, onProjectClose }) {
 
     const [fileTree, setFileTree] = useState(null)
     const [openFolders, setOpenFolders] = useState({})
@@ -59,16 +59,31 @@ function MainEditor({ project, onProjectChange }) {
         loadJars()
     }, [])
 
+    useEffect(() => {
+        if (!fileTree) return  // jars not loaded yet
+
+        setSelectedPairs(project.selectedPairs || {})
+        setOpenFolders(project.openFolders || {})
+        setSelectedFile(project.selectedFile || null)
+    }, [fileTree])
+
+    useEffect(() => {
+        if (!selectedFile) return
+        if (!zips.a || !zips.b) return
+        openFile(selectedFile)
+    }, [selectedFile, zips])
+
+    useEffect(() => {
+        if (!zips.a || !zips.b) return
+        computeHashesForPairs(selectedPairs)
+    }, [selectedPairs])
+
     const toggleFolder = (folder) => {
         setOpenFolders(prev => ({ ...prev, [folder]: !prev[folder] }))
     }
 
     const loadJars = async () => {
         try {
-            // console.log('Reading jars...')
-            // console.log('Path A:', project.versionA.path)
-            // console.log('Path B:', project.versionB.path)
-
             const bytesA = await window.api.readJar(project.versionA.path)
             // console.log('bytesA type:', bytesA?.constructor?.name)
             // console.log('bytesA length:', bytesA?.length)
@@ -123,6 +138,22 @@ function MainEditor({ project, onProjectChange }) {
         }
     }
 
+    const computeHashesForPairs = async (pairs) => {
+        const paths = Object.entries(pairs).flatMap(([folder, files]) =>
+            files.map(({ fileName }) => folder + '/' + fileName)
+        )
+
+        for (const filePath of paths) {
+            if (fileHashes[filePath]) continue  // skip if already computed
+            const contentA = await zips.a.files[filePath].async('string')
+            const contentB = await zips.b.files[filePath].async('string')
+            const hashA = await hashString(contentA)
+            const hashB = await hashString(contentB)
+            const changed = hashA !== hashB
+            setFileHashes(prev => ({ ...prev, [filePath]: { hashA, hashB, changed } }))
+        }
+    }
+
     const openFile = async (filePath) => {
         try {
             const zipA = zips.a
@@ -131,20 +162,20 @@ function MainEditor({ project, onProjectChange }) {
             const contentA = await zipA.files[filePath].async('string')
             const contentB = await zipB.files[filePath].async('string')
 
-            const hashA = await hashString(contentA)
-            const hashB = await hashString(contentB)
-            const changed = hashA !== hashB
+            // const hashA = await hashString(contentA)
+            // const hashB = await hashString(contentB)
+            // const changed = hashA !== hashB
 
             // console.log('Content A length:', contentA.length)
             // console.log('Content B length:', contentB.length)
             // console.log('First 3 lines A:', contentA.split('\n').slice(0, 3))
 
             const diff = diffLines(contentA, contentB)
-            console.log('Total lines:', diff.length)
+            // console.log('Total lines:', diff.length)
             // console.log('Changed lines:', diff.filter(l => l.changed).length)
-            console.log('First 5 lines:', diff.slice(0, 5))
+            // console.log('First 5 lines:', diff.slice(0, 5))
 
-            setFileHashes(prev => ({ ...prev, [filePath]: { hashA, hashB, changed } }))
+            // setFileHashes(prev => ({ ...prev, [filePath]: { hashA, hashB, changed } }))
             setFileContents({ a: contentA, b: contentB })
             setDiff(diff)
         } catch (e) {
@@ -158,10 +189,10 @@ function MainEditor({ project, onProjectChange }) {
             if (!fileHashes[filePath]) {  // skip if already computed
                 const contentA = await zips.a.files[filePath].async('string')
                 const contentB = await zips.b.files[filePath].async('string')
-                const hashA = await hashString(contentA)
-                const hashB = await hashString(contentB)
-                const changed = hashA !== hashB
-                setFileHashes(prev => ({ ...prev, [filePath]: { hashA, hashB, changed } }))
+                // const hashA = await hashString(contentA)
+                // const hashB = await hashString(contentB)
+                // const changed = hashA !== hashB
+                // setFileHashes(prev => ({ ...prev, [filePath]: { hashA, hashB, changed } }))
             }
         }
 
@@ -174,6 +205,25 @@ function MainEditor({ project, onProjectChange }) {
             return grouped
         })
         setShowFilePicker(false)
+    }
+
+    const handleSave = async () => {
+        const data = {
+            name: project.name,
+            versionA: project.versionA.path,
+            versionB: project.versionB.path,
+            selectedPairs,
+            openFolders,
+            selectedFile
+        }
+
+        const content = JSON.stringify(data, null, 2)
+
+        const savePath = await window.api.saveProject(content)
+
+        if (savePath !== null) {
+            console.log('Project saved to: ', savePath)
+        }
     }
 
     if (!fileTree) {
@@ -197,108 +247,118 @@ function MainEditor({ project, onProjectChange }) {
     }
 
     return (
-        <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
 
-            {/* Left panel - file tree */}
-            <div style={{ width: '300px', height: '100vh', overflowY: 'auto', borderRight: '1px solid #444', padding: '8px', flexShrink: 0 }}>
-                <h3 style={{ margin: '0 0 8px 0' }}>{project.name}</h3>
-                <h4>Files</h4>
-                <button onClick={() => setShowFilePicker(true)}>+ Add Files</button>
-                {Object.keys(selectedPairs).sort().map(folder => (
-                    <div key={folder}>
-                        <div
-                            onClick={() => toggleFolder(folder)}
-                            style={{ cursor: 'pointer', padding: '2px 4px', userSelect: 'none' }}
-                        >
-                            {openFolders[folder] ? '▼' : '▶'} {folder}
-                        </div>
-                        {openFolders[folder] && (
-                            <div style={{ paddingLeft: '16px' }}>
-                                {selectedPairs[folder].map(({ fileName, tag }) => (
-                                    <div
-                                        key={fileName}
-                                        style={{ padding: '2px 4px', cursor: tag === null ? 'pointer' : 'default', color: fileHashes[folder + '/' + fileName]?.changed ? '#f87171' : 'inherit' }}
-                                    ><span style={{ cursor: 'pointer', flex: 1 }} onClick={() => {
-                                        const fullPath = folder + '/' + fileName
-                                        setSelectedFile(fullPath)
-                                        openFile(fullPath)
-                                    }}>{fileName}</span>
-
-                                        <span
-                                            style={{ cursor: 'pointer', color: '#888', fontSize: '10px', marginLeft: '4px' }}
-                                            onClick={() => {
-                                                setSelectedPairs(prev => {
-                                                    const updated = { ...prev }
-                                                    updated[folder] = updated[folder].filter(f => f.fileName !== fileName)
-                                                    if (updated[folder].length === 0) delete updated[folder]
-                                                    return updated
-                                                })
-                                            }}
-                                        >
-                                            ✕
-                                        </span>
-                                        {tag && (
-                                            <span style={{ marginLeft: '6px', fontSize: '10px', color: tag === 'A' ? '#f87171' : '#60a5fa' }}>
-                                                [{tag}]
-                                            </span>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                ))}
+            {/* Top bar */}
+            <div style={{ height: '40px', borderBottom: '1px solid #444', display: 'flex', alignItems: 'center', padding: '0 12px', flexShrink: 0 }}>
+                <button onClick={onProjectClose}>Close Project</button>
+                <button onClick={handleSave}>Save</button>
+                <span style={{ marginLeft: '12px', color: '#888', fontSize: '12px' }}>{project.name}</span>
             </div>
 
-            {/* Center panel */}
-            <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-                {fileContents.a === null ? (
-                    <div style={{ flex: 1, padding: '8px' }}>
-                        <p>Select a paired file to view contents</p>
-                    </div>
-                ) : (
-                    <>
-                        {/* Version A */}
-                        <div style={{ flex: 1, overflowY: 'auto', borderRight: '1px solid #444', padding: '8px' }}>
-                            <div style={{ marginBottom: '8px', color: '#888', fontSize: '12px' }}>
-                                {project.versionA.label} — {selectedFile}
+            {/* Main Area */}
+            <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+                {/* Left panel - file tree */}
+                <div style={{ width: '300px', height: '100vh', overflowY: 'auto', borderRight: '1px solid #444', padding: '8px', flexShrink: 0 }}>
+                    <h3 style={{ margin: '0 0 8px 0' }}>{project.name}</h3>
+                    <h4>Files</h4>
+                    <button onClick={() => setShowFilePicker(true)}>+ Add Files</button>
+                    {Object.keys(selectedPairs).sort().map(folder => (
+                        <div key={folder}>
+                            <div
+                                onClick={() => toggleFolder(folder)}
+                                style={{ cursor: 'pointer', padding: '2px 4px', userSelect: 'none' }}
+                            >
+                                {openFolders[folder] ? '▼' : '▶'} {folder}
                             </div>
-                            {diff.map((line, i) => (
-                                <pre key={`a-${i}`}
-                                    onMouseEnter={() => setHoveredLine(i)}
-                                    onMouseLeave={() => setHoveredLine(null)} style={{
-                                        margin: 0,
-                                        fontSize: '12px',
-                                        backgroundColor: line.removed ? 'rgb(190, 66, 66)' : line.added ? 'rgba(71, 171, 110, 0.15)' : 'transparent',
-                                        whiteSpace: 'pre-wrap',
-                                        outline: hoveredLine === i ? '1px solid yellow' : 'none'
-                                    }}>
-                                    {line.added ? ' ' : line.line || ' '}
-                                </pre>
-                            ))}
-                        </div>
+                            {openFolders[folder] && (
+                                <div style={{ paddingLeft: '16px' }}>
+                                    {selectedPairs[folder].map(({ fileName, tag }) => (
+                                        <div
+                                            key={fileName}
+                                            style={{ padding: '2px 4px', cursor: tag === null ? 'pointer' : 'default', color: fileHashes[folder + '/' + fileName]?.changed ? '#f87171' : 'inherit' }}
+                                        ><span style={{ cursor: 'pointer', flex: 1 }} onClick={() => {
+                                            const fullPath = folder + '/' + fileName
+                                            setSelectedFile(fullPath)
+                                            openFile(fullPath)
+                                        }}>{fileName}</span>
 
-                        {/* Version B */}
-                        <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
-                            <div style={{ marginBottom: '8px', color: '#888', fontSize: '12px' }}>
-                                {project.versionB.label} — {selectedFile}
-                            </div>
-                            {diff.map((line, i) => (
-                                <pre key={`a-${i}`}
-                                    onMouseEnter={() => setHoveredLine(i)}
-                                    onMouseLeave={() => setHoveredLine(null)} style={{
-                                        margin: 0,
-                                        fontSize: '12px',
-                                        backgroundColor: line.added ? 'rgb(71, 171, 110)' : line.removed ? 'rgba(190, 66, 66, 0.15)' : 'transparent',
-                                        whiteSpace: 'pre-wrap',
-                                        outline: hoveredLine === i ? '1px solid yellow' : 'none'
-                                    }}>
-                                    {line.removed ? ' ' : line.line || ' '}
-                                </pre>
-                            ))}
+                                            <span
+                                                style={{ cursor: 'pointer', color: '#888', fontSize: '10px', marginLeft: '4px' }}
+                                                onClick={() => {
+                                                    setSelectedPairs(prev => {
+                                                        const updated = { ...prev }
+                                                        updated[folder] = updated[folder].filter(f => f.fileName !== fileName)
+                                                        if (updated[folder].length === 0) delete updated[folder]
+                                                        return updated
+                                                    })
+                                                }}
+                                            >
+                                                ✕
+                                            </span>
+                                            {tag && (
+                                                <span style={{ marginLeft: '6px', fontSize: '10px', color: tag === 'A' ? '#f87171' : '#60a5fa' }}>
+                                                    [{tag}]
+                                                </span>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                    </>
-                )}
+                    ))}
+                </div>
+
+                {/* Center panel */}
+                <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+                    {fileContents.a === null ? (
+                        <div style={{ flex: 1, padding: '8px' }}>
+                            <p>Select a paired file to view contents</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Version A */}
+                            <div style={{ flex: 1, overflowY: 'auto', borderRight: '1px solid #444', padding: '8px' }}>
+                                <div style={{ marginBottom: '8px', color: '#888', fontSize: '12px' }}>
+                                    {project.versionA.label} — {selectedFile}
+                                </div>
+                                {diff.map((line, i) => (
+                                    <pre key={`a-${i}`}
+                                        onMouseEnter={() => setHoveredLine(i)}
+                                        onMouseLeave={() => setHoveredLine(null)} style={{
+                                            margin: 0,
+                                            fontSize: '12px',
+                                            backgroundColor: line.removed ? 'rgb(190, 66, 66)' : line.added ? 'rgba(71, 171, 110, 0.15)' : 'transparent',
+                                            whiteSpace: 'pre-wrap',
+                                            outline: hoveredLine === i ? '1px solid yellow' : 'none'
+                                        }}>
+                                        {line.added ? ' ' : line.line || ' '}
+                                    </pre>
+                                ))}
+                            </div>
+
+                            {/* Version B */}
+                            <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+                                <div style={{ marginBottom: '8px', color: '#888', fontSize: '12px' }}>
+                                    {project.versionB.label} — {selectedFile}
+                                </div>
+                                {diff.map((line, i) => (
+                                    <pre key={`a-${i}`}
+                                        onMouseEnter={() => setHoveredLine(i)}
+                                        onMouseLeave={() => setHoveredLine(null)} style={{
+                                            margin: 0,
+                                            fontSize: '12px',
+                                            backgroundColor: line.added ? 'rgb(71, 171, 110)' : line.removed ? 'rgba(190, 66, 66, 0.15)' : 'transparent',
+                                            whiteSpace: 'pre-wrap',
+                                            outline: hoveredLine === i ? '1px solid yellow' : 'none'
+                                        }}>
+                                        {line.removed ? ' ' : line.line || ' '}
+                                    </pre>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
 
             {showFilePicker && (

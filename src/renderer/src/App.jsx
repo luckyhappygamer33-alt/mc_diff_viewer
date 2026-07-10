@@ -27,6 +27,9 @@ function App() {
     try {
       const projectData = JSON.parse(content)
       // Remember where this project was loaded from so we can save back to it
+
+      projectData['versionA'] = { path: projectData.versionA }
+      projectData['versionB'] = { path: projectData.versionB }
       projectData.savedPath = path
       setProject(projectData)
       setScreen('editor')
@@ -41,6 +44,8 @@ function App() {
     setScreen('editor')
   }
 
+  const handleProjectClose = () => setScreen('welcome')
+
   if (screen === 'welcome') {
     return <WelcomeScreen onNewProject={handleNewProject} onOpenProject={handleOpenProject} />
   }
@@ -50,7 +55,7 @@ function App() {
   }
 
   if (screen === 'editor') {
-    return <MainEditor project={project} onProjectChange={setProject} />
+    return <MainEditor project={project} onProjectChange={setProject} onProjectClose={handleProjectClose} />
   }
 }
 
