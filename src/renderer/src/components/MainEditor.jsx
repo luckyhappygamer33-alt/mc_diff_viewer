@@ -54,6 +54,7 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
     const [showFilePicker, setShowFilePicker] = useState(false)
     const [selectedPairs, setSelectedPairs] = useState({})
     const [hoveredLine, setHoveredLine] = useState(null)
+    const [notes, setNotes] = useState({})
 
     useEffect(() => {
         loadJars()
@@ -65,6 +66,7 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
         setSelectedPairs(project.selectedPairs || {})
         setOpenFolders(project.openFolders || {})
         setSelectedFile(project.selectedFile || null)
+        setNotes(project.notes || {})
     }, [fileTree])
 
     useEffect(() => {
@@ -85,24 +87,13 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
     const loadJars = async () => {
         try {
             const bytesA = await window.api.readJar(project.versionA.path)
-            // console.log('bytesA type:', bytesA?.constructor?.name)
-            // console.log('bytesA length:', bytesA?.length)
-
             const bytesB = await window.api.readJar(project.versionB.path)
-            // console.log('bytesB length:', bytesB?.length)
 
             const zipA = await JSZip.loadAsync(bytesA)
-            // console.log('zipA loaded, files:', Object.keys(zipA.files).length)
-
             const zipB = await JSZip.loadAsync(bytesB)
-            // console.log('zipB loaded, files:', Object.keys(zipB.files).length)
 
             const filesA = Object.keys(zipA.files).filter(f => f.endsWith('.java'))
             const filesB = Object.keys(zipB.files).filter(f => f.endsWith('.java'))
-
-            // console.log('Java files in A:', filesA.length)
-            // console.log('Java files in B:', filesB.length)
-            // console.log('First 5 from A:', filesA.slice(0, 5))
 
             const setA = new Set(filesA)
             const setB = new Set(filesB)
@@ -110,10 +101,6 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
             const paired = filesA.filter(f => setB.has(f))   // in A AND in B
             const aOnly = filesA.filter(f => !setB.has(f))  // in A but NOT in B
             const bOnly = filesB.filter(f => !setA.has(f))  // in B but NOT in A
-
-            // console.log('Paired:', paired.length)
-            // console.log('A only:', aOnly.length)
-            // console.log('B only:', bOnly.length)
 
             const tree = {}
             groupByPackage(tree, paired, null)
@@ -123,12 +110,6 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
             const taggedFiles = Object.values(tree)
                 .flat()
                 .filter(f => f.tag !== null)
-            // console.log('Tagged files:', taggedFiles.slice(0, 5))
-
-            // const folders = Object.keys(tree)
-            // console.log('Total folders:', folders.length)
-            // console.log('First 3 folders:', folders.slice(0, 3))
-            // console.log('Files in first folder:', tree[folders[0]])
 
             setFileTree({ tree, paired, aOnly, bOnly })
             setZips({ a: zipA, b: zipB })
@@ -162,20 +143,8 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
             const contentA = await zipA.files[filePath].async('string')
             const contentB = await zipB.files[filePath].async('string')
 
-            // const hashA = await hashString(contentA)
-            // const hashB = await hashString(contentB)
-            // const changed = hashA !== hashB
-
-            // console.log('Content A length:', contentA.length)
-            // console.log('Content B length:', contentB.length)
-            // console.log('First 3 lines A:', contentA.split('\n').slice(0, 3))
-
             const diff = diffLines(contentA, contentB)
-            // console.log('Total lines:', diff.length)
-            // console.log('Changed lines:', diff.filter(l => l.changed).length)
-            // console.log('First 5 lines:', diff.slice(0, 5))
 
-            // setFileHashes(prev => ({ ...prev, [filePath]: { hashA, hashB, changed } }))
             setFileContents({ a: contentA, b: contentB })
             setDiff(diff)
         } catch (e) {
@@ -189,10 +158,6 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
             if (!fileHashes[filePath]) {  // skip if already computed
                 const contentA = await zips.a.files[filePath].async('string')
                 const contentB = await zips.b.files[filePath].async('string')
-                // const hashA = await hashString(contentA)
-                // const hashB = await hashString(contentB)
-                // const changed = hashA !== hashB
-                // setFileHashes(prev => ({ ...prev, [filePath]: { hashA, hashB, changed } }))
             }
         }
 
@@ -214,7 +179,8 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
             versionB: project.versionB.path,
             selectedPairs,
             openFolders,
-            selectedFile
+            selectedFile,
+            notes
         }
 
         const content = JSON.stringify(data, null, 2)
@@ -258,55 +224,89 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
 
             {/* Main Area */}
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+
                 {/* Left panel - file tree */}
                 <div style={{ width: '300px', height: '100vh', overflowY: 'auto', borderRight: '1px solid #444', padding: '8px', flexShrink: 0 }}>
-                    <h3 style={{ margin: '0 0 8px 0' }}>{project.name}</h3>
-                    <h4>Files</h4>
-                    <button onClick={() => setShowFilePicker(true)}>+ Add Files</button>
-                    {Object.keys(selectedPairs).sort().map(folder => (
-                        <div key={folder}>
-                            <div
-                                onClick={() => toggleFolder(folder)}
-                                style={{ cursor: 'pointer', padding: '2px 4px', userSelect: 'none' }}
-                            >
-                                {openFolders[folder] ? '▼' : '▶'} {folder}
-                            </div>
-                            {openFolders[folder] && (
-                                <div style={{ paddingLeft: '16px' }}>
-                                    {selectedPairs[folder].map(({ fileName, tag }) => (
-                                        <div
-                                            key={fileName}
-                                            style={{ padding: '2px 4px', cursor: tag === null ? 'pointer' : 'default', color: fileHashes[folder + '/' + fileName]?.changed ? '#f87171' : 'inherit' }}
-                                        ><span style={{ cursor: 'pointer', flex: 1 }} onClick={() => {
-                                            const fullPath = folder + '/' + fileName
-                                            setSelectedFile(fullPath)
-                                            openFile(fullPath)
-                                        }}>{fileName}</span>
 
-                                            <span
-                                                style={{ cursor: 'pointer', color: '#888', fontSize: '10px', marginLeft: '4px' }}
-                                                onClick={() => {
-                                                    setSelectedPairs(prev => {
-                                                        const updated = { ...prev }
-                                                        updated[folder] = updated[folder].filter(f => f.fileName !== fileName)
-                                                        if (updated[folder].length === 0) delete updated[folder]
-                                                        return updated
-                                                    })
-                                                }}
-                                            >
-                                                ✕
-                                            </span>
-                                            {tag && (
-                                                <span style={{ marginLeft: '6px', fontSize: '10px', color: tag === 'A' ? '#f87171' : '#60a5fa' }}>
-                                                    [{tag}]
-                                                </span>
-                                            )}
-                                        </div>
-                                    ))}
+                    {/* Files panel - top half */}
+                    <div style={{ flex: 1, overflowY: 'auto', borderBottom: '1px solid #444', padding: '8px' }}>
+                        <h4>Files</h4>
+                        <button onClick={() => setShowFilePicker(true)}>+ Add Files</button>
+                        {Object.keys(selectedPairs).sort().map(folder => (
+                            <div key={folder}>
+                                <div
+                                    onClick={() => toggleFolder(folder)}
+                                    style={{ cursor: 'pointer', padding: '2px 4px', userSelect: 'none' }}
+                                >
+                                    {openFolders[folder] ? '▼' : '▶'} {folder}
                                 </div>
+                                {openFolders[folder] && (
+                                    <div style={{ paddingLeft: '16px' }}>
+                                        {selectedPairs[folder].map(({ fileName, tag }) => (
+                                            <div
+                                                key={fileName}
+                                                style={{ padding: '2px 4px', cursor: tag === null ? 'pointer' : 'default', color: fileHashes[folder + '/' + fileName]?.changed ? '#f87171' : 'inherit' }}
+                                            ><span style={{ cursor: 'pointer', flex: 1 }} onClick={() => {
+                                                const fullPath = folder + '/' + fileName
+                                                setSelectedFile(fullPath)
+                                                openFile(fullPath)
+                                            }}>{fileName}</span>
+
+                                                <span
+                                                    style={{ cursor: 'pointer', color: '#888', fontSize: '10px', marginLeft: '4px' }}
+                                                    onClick={() => {
+                                                        setSelectedPairs(prev => {
+                                                            const updated = { ...prev }
+                                                            updated[folder] = updated[folder].filter(f => f.fileName !== fileName)
+                                                            if (updated[folder].length === 0) delete updated[folder]
+                                                            return updated
+                                                        })
+                                                        // clear selected file if it was the one removed
+                                                        const removedPath = folder + '/' + fileName
+                                                        if (selectedFile === removedPath) {
+                                                            setSelectedFile(null)
+                                                            setFileContents({ a: null, b: null })
+                                                            setDiff(null)
+                                                        }
+                                                        // remove notes for that file
+                                                        setNotes(prev => {
+                                                            const updated = { ...prev }
+                                                            delete updated[removedPath]
+                                                            return updated
+                                                        })
+                                                    }}
+                                                >
+                                                    ✕
+                                                </span>
+                                                {tag && (
+                                                    <span style={{ marginLeft: '6px', fontSize: '10px', color: tag === 'A' ? '#f87171' : '#60a5fa' }}>
+                                                        [{tag}]
+                                                    </span>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Notes panel - bottom half */}
+                    <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
+                        <h4>Notes</h4>
+                        <p style={{ color: '#888', fontSize: '12px' }}>
+                            {!selectedFile ? (
+                                <p style={{ color: '#888', fontSize: '12px' }}>Select a file to see notes</p>
+                            ) : (
+                                <textarea
+                                    style={{ flex: 1, background: '#2a2a2a', color: '#fff', border: '1px solid #444', padding: '8px', resize: 'none' }}
+                                    placeholder="Add notes for this file..."
+                                    value={notes[selectedFile] || ''}
+                                    onChange={e => setNotes(prev => ({ ...prev, [selectedFile]: e.target.value }))}
+                                />
                             )}
-                        </div>
-                    ))}
+                        </p>
+                    </div>
                 </div>
 
                 {/* Center panel */}
