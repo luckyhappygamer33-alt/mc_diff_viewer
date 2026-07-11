@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import JSZip from 'jszip'
 import * as Diff from 'diff'
 import FilePicker from './FilePicker'
@@ -57,6 +57,10 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
     const [selectedPairs, setSelectedPairs] = useState({})
     const [hoveredLine, setHoveredLine] = useState(null)
     const [notes, setNotes] = useState({})
+
+    const panelARef = useRef(null)
+    const panelBRef = useRef(null)
+    const isSyncing = useRef(false)
 
     useEffect(() => {
         loadJars()
@@ -173,6 +177,20 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
             return grouped
         })
         setShowFilePicker(false)
+    }
+
+    const handleScrollSync = (source, target) => {
+        if (isSyncing.current) return
+        if (!source || !target) return
+
+        isSyncing.current = true
+        target.scrollTop = source.scrollTop
+        target.scrollLeft = source.scrollLeft
+        console.log('syncings')
+
+        setTimeout(() => {
+            isSyncing.current = false
+        }, 0)
     }
 
     const handleSave = async () => {
@@ -362,7 +380,7 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
                     ) : (
                         <>
                             {/* Version A */}
-                            <T.DiffPanel>
+                            <T.DiffPanel scrollRef={panelARef} onScroll={() => handleScrollSync(panelARef.current, panelBRef.current)}>
                                 <T.DiffHeader>
                                     Version A — {selectedFile}
                                 </T.DiffHeader>
@@ -372,7 +390,6 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
                                             onMouseEnter={() => setHoveredLine(i)}
                                             onMouseLeave={() => setHoveredLine(null)} style={{
                                                 display: 'block',
-                                                minWidth: 'max-content',
                                                 margin: 0,
                                                 fontSize: '12px',
                                                 backgroundColor: line.removed ? `${T.theme.diffRemoved}` : line.added ? `${T.theme.diffAddedDim}` : 'transparent',
@@ -386,7 +403,7 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
                             </T.DiffPanel>
 
                             {/* Version B */}
-                            <T.DiffPanel>
+                            <T.DiffPanel scrollRef={panelBRef} onScroll={() => handleScrollSync(panelBRef.current, panelARef.current)}>
                                 <T.DiffHeader>
                                     Version B — {selectedFile}
                                 </T.DiffHeader>
@@ -396,7 +413,6 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
                                             onMouseEnter={() => setHoveredLine(i)}
                                             onMouseLeave={() => setHoveredLine(null)} style={{
                                                 display: 'block',
-                                                minWidth: 'max-content',
                                                 margin: 0,
                                                 fontSize: '12px',
                                                 backgroundColor: line.added ? `${T.theme.diffAdded}` : line.removed ? `${T.theme.diffRemovedDim}` : 'transparent',
