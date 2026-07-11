@@ -247,16 +247,65 @@ export function DiffHeader({ children }) {
   )
 }
 
-export function ProjectBadge({ name }) {
+export function ProjectBadge({ name, onRename }) {
+  const [editingName, setEditingName] = useState(false)
+  const [inputValue, setInputValue] = useState(name)
+
+  if (editingName) {
+    return (
+      <input
+        autoFocus
+        value={inputValue}
+        size={Math.max(inputValue.length, 1)}
+        onChange={e => setInputValue(e.target.value)}
+        onBlur={e => {
+          const val = e.target.value.trim()
+          if (val.length === 0) {
+            setInputValue(name)  // revert to original name
+            setEditingName(false)
+            return
+          };
+          onRename(val)
+          setEditingName(false)
+        }}
+        onKeyDown={e => {
+          if (e.key === 'Enter') {
+            const val = e.target.value.trim()
+            if (val.length === 0) {
+              setInputValue(name)  // revert to original name
+              setEditingName(false)
+              return
+            };
+            onRename(val)
+            setEditingName(false)
+          }
+        }}
+        style={{
+          padding: '3px 12px',
+          border: `1px solid ${theme.accent}`,
+          borderRadius: '6px',
+          fontSize: '12px',
+          fontFamily: "'Consolas', monospace",
+          outline: 'none',
+          color: theme.text,
+          textAlign: 'center'
+        }}
+      />
+    )
+  }
+
   return (
     <div style={{
+      width: 'fit-content',
       padding: '3px 12px',
       border: `1px solid ${theme.border}`,
       borderRadius: '6px',
       fontSize: '12px',
       color: theme.textMuted,
       fontFamily: "'Consolas', monospace",
-    }}>
+    }}
+      onClick={() => { setInputValue(name); setEditingName(true) }}
+    >
       {name}
     </div>
   )

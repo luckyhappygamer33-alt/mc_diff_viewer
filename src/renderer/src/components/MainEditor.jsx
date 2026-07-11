@@ -45,6 +45,7 @@ function diffLines(a, b) {
 
 function MainEditor({ project, onProjectChange, onProjectClose }) {
 
+    const [projectName, setProjectName] = useState(null)
     const [fileTree, setFileTree] = useState(null)
     const [openFolders, setOpenFolders] = useState({})
     const [selectedFile, setSelectedFile] = useState(null)
@@ -64,6 +65,7 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
     useEffect(() => {
         if (!fileTree) return  // jars not loaded yet
 
+        setProjectName(project.name || null)
         setSelectedPairs(project.selectedPairs || {})
         setOpenFolders(project.openFolders || {})
         setSelectedFile(project.selectedFile || null)
@@ -175,7 +177,7 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
 
     const handleSave = async () => {
         const data = {
-            name: project.name,
+            name: projectName,
             versionA: project.versionA.path,
             versionB: project.versionB.path,
             selectedPairs,
@@ -221,7 +223,9 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
                 <T.Btn variant='secondary' onClick={onProjectClose}>Close Project</T.Btn>
                 <T.Btn variant='primary' onClick={handleSave}>Save</T.Btn>
                 <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-                    <T.ProjectBadge name={project.name} />
+                    <T.ProjectBadge name={projectName} onRename={projectName => {
+                        setProjectName(projectName)
+                    }} />
                 </div>
             </T.TopBar>
 
