@@ -186,8 +186,6 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
         isSyncing.current = true
         target.scrollTop = source.scrollTop
         target.scrollLeft = source.scrollLeft
-        console.log('syncings')
-
         setTimeout(() => {
             isSyncing.current = false
         }, 0)
@@ -387,14 +385,23 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
                                 <div style={{ minWidth: 'max-content' }}>
                                     {diff.map((line, i) => (
                                         <pre key={`a-${i}`}
-                                            onMouseEnter={() => setHoveredLine(i)}
-                                            onMouseLeave={() => setHoveredLine(null)} style={{
+                                            className={`diff-line diff-line-${i}`}
+                                            onMouseEnter={() => {
+                                                document.querySelectorAll(`.diff-line-${i}`).forEach(el => {
+                                                    el.classList.add('diff-line-pair')
+                                                })
+                                            }}
+                                            onMouseLeave={() => {
+                                                document.querySelectorAll(`.diff-line-${i}`).forEach(el => {
+                                                    el.classList.remove('diff-line-pair')
+                                                })
+                                            }}
+                                            style={{
                                                 display: 'block',
                                                 margin: 0,
                                                 fontSize: '12px',
                                                 backgroundColor: line.removed ? `${T.theme.diffRemoved}` : line.added ? `${T.theme.diffAddedDim}` : 'transparent',
                                                 whiteSpace: 'pre',
-                                                outline: hoveredLine === i ? '3px solid orange' : 'none'
                                             }}>
                                             {line.added ? ' ' : line.line || ' '}
                                         </pre>
@@ -410,14 +417,23 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
                                 <div style={{ minWidth: 'max-content' }}>
                                     {diff.map((line, i) => (
                                         <pre key={`a-${i}`}
-                                            onMouseEnter={() => setHoveredLine(i)}
-                                            onMouseLeave={() => setHoveredLine(null)} style={{
+                                            className={`diff-line diff-line-${i}`}
+                                            onMouseEnter={() => {
+                                                document.querySelectorAll(`.diff-line-${i}`).forEach(el => {
+                                                    el.classList.add('diff-line-pair')
+                                                })
+                                            }}
+                                            onMouseLeave={() => {
+                                                document.querySelectorAll(`.diff-line-${i}`).forEach(el => {
+                                                    el.classList.remove('diff-line-pair')
+                                                })
+                                            }}
+                                            style={{
                                                 display: 'block',
                                                 margin: 0,
                                                 fontSize: '12px',
                                                 backgroundColor: line.added ? `${T.theme.diffAdded}` : line.removed ? `${T.theme.diffRemovedDim}` : 'transparent',
                                                 whiteSpace: 'pre',
-                                                outline: hoveredLine === i ? '3px solid orange' : 'none'
                                             }}>
                                             {line.removed ? ' ' : line.line || ' '}
                                         </pre>

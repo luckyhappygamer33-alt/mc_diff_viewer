@@ -71,3 +71,11 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+.diff-line:hover {
+  outline: 3px solid orange;
+}
+
+.diff-line-pair {
+  outline: 3px solid orange;
+}
