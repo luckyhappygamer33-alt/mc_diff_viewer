@@ -228,11 +228,13 @@ export function DiffPanel({ children, borderRight = false }) {
     <div style={{
       flex: 1,
       overflowY: 'auto',
+      overflowX: 'auto',
       padding: '8px',
       color: theme.text,
       fontFamily: "'Consolas', monospace",
       borderRight: borderRight ? `1px solid ${theme.border}` : 'none',
-      background: theme.bg
+      background: theme.bg,
+      whiteSpace: 'pre'
     }}>
       {children}
     </div>

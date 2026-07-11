@@ -366,19 +366,23 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
                                 <T.DiffHeader>
                                     Version A — {selectedFile}
                                 </T.DiffHeader>
-                                {diff.map((line, i) => (
-                                    <pre key={`a-${i}`}
-                                        onMouseEnter={() => setHoveredLine(i)}
-                                        onMouseLeave={() => setHoveredLine(null)} style={{
-                                            margin: 0,
-                                            fontSize: '12px',
-                                            backgroundColor: line.removed ? `${T.theme.diffRemoved}` : line.added ? `${T.theme.diffAddedDim}` : 'transparent',
-                                            whiteSpace: 'pre-wrap',
-                                            outline: hoveredLine === i ? '3px solid orange' : 'none'
-                                        }}>
-                                        {line.added ? ' ' : line.line || ' '}
-                                    </pre>
-                                ))}
+                                <div style={{ minWidth: 'max-content' }}>
+                                    {diff.map((line, i) => (
+                                        <pre key={`a-${i}`}
+                                            onMouseEnter={() => setHoveredLine(i)}
+                                            onMouseLeave={() => setHoveredLine(null)} style={{
+                                                display: 'block',
+                                                minWidth: 'max-content',
+                                                margin: 0,
+                                                fontSize: '12px',
+                                                backgroundColor: line.removed ? `${T.theme.diffRemoved}` : line.added ? `${T.theme.diffAddedDim}` : 'transparent',
+                                                whiteSpace: 'pre',
+                                                outline: hoveredLine === i ? '3px solid orange' : 'none'
+                                            }}>
+                                            {line.added ? ' ' : line.line || ' '}
+                                        </pre>
+                                    ))}
+                                </div>
                             </T.DiffPanel>
 
                             {/* Version B */}
@@ -386,19 +390,23 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
                                 <T.DiffHeader>
                                     Version B — {selectedFile}
                                 </T.DiffHeader>
-                                {diff.map((line, i) => (
-                                    <pre key={`a-${i}`}
-                                        onMouseEnter={() => setHoveredLine(i)}
-                                        onMouseLeave={() => setHoveredLine(null)} style={{
-                                            margin: 0,
-                                            fontSize: '12px',
-                                            backgroundColor: line.added ? `${T.theme.diffAdded}` : line.removed ? `${T.theme.diffRemovedDim}` : 'transparent',
-                                            whiteSpace: 'pre-wrap',
-                                            outline: hoveredLine === i ? '3px solid orange' : 'none'
-                                        }}>
-                                        {line.removed ? ' ' : line.line || ' '}
-                                    </pre>
-                                ))}
+                                <div style={{ minWidth: 'max-content' }}>
+                                    {diff.map((line, i) => (
+                                        <pre key={`a-${i}`}
+                                            onMouseEnter={() => setHoveredLine(i)}
+                                            onMouseLeave={() => setHoveredLine(null)} style={{
+                                                display: 'block',
+                                                minWidth: 'max-content',
+                                                margin: 0,
+                                                fontSize: '12px',
+                                                backgroundColor: line.added ? `${T.theme.diffAdded}` : line.removed ? `${T.theme.diffRemovedDim}` : 'transparent',
+                                                whiteSpace: 'pre',
+                                                outline: hoveredLine === i ? '3px solid orange' : 'none'
+                                            }}>
+                                            {line.removed ? ' ' : line.line || ' '}
+                                        </pre>
+                                    ))}
+                                </div>
                             </T.DiffPanel>
                         </>
                     )}
