@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import JSZip from 'jszip'
 import * as Diff from 'diff'
 import FilePicker from './FilePicker'
+import * as T from '../theme'
 
 function groupByPackage(tree, files, tag) {
     for (const path of files) {
@@ -213,101 +214,140 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
     }
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden' }}>
+        <div style={{ display: 'flex', background: T.theme.bg, flexDirection: 'column', height: '100vh', width: '100%', overflow: 'hidden' }}>
 
             {/* Top bar */}
-            <div style={{ height: '40px', borderBottom: '1px solid #444', display: 'flex', alignItems: 'center', padding: '0 12px', flexShrink: 0 }}>
-                <button onClick={onProjectClose}>Close Project</button>
-                <button onClick={handleSave}>Save</button>
-                <span style={{ marginLeft: '12px', color: '#888', fontSize: '12px' }}>{project.name}</span>
-            </div>
+            <T.TopBar>
+                <T.Btn variant='secondary' onClick={onProjectClose}>Close Project</T.Btn>
+                <T.Btn variant='primary' onClick={handleSave}>Save</T.Btn>
+                <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+                    <T.ProjectBadge name={project.name} />
+                </div>
+            </T.TopBar>
 
             {/* Main Area */}
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
 
                 {/* Left panel - file tree */}
-                <div style={{ width: '300px', height: '100vh', overflowY: 'auto', borderRight: '1px solid #444', padding: '8px', flexShrink: 0 }}>
+                <T.Panel>
 
                     {/* Files panel - top half */}
-                    <div style={{ flex: 1, overflowY: 'auto', borderBottom: '1px solid #444', padding: '8px' }}>
-                        <h4>Files</h4>
-                        <button onClick={() => setShowFilePicker(true)}>+ Add Files</button>
+                    <T.PanelSection>
+                        <T.PanelHeader>Files</T.PanelHeader>
+                        <T.Btn variant='primary' style={{ width: '90' }} onClick={() => setShowFilePicker(true)}>+ Add Files</T.Btn>
                         {Object.keys(selectedPairs).sort().map(folder => (
                             <div key={folder}>
-                                <div
+                                <T.FolderRow
+                                    label={folder}
                                     onClick={() => toggleFolder(folder)}
-                                    style={{ cursor: 'pointer', padding: '2px 4px', userSelect: 'none' }}
+                                    onRemove={() => {
+                                        // remove all files in this folder from selectedPairs
+                                        setSelectedPairs(prev => {
+                                            const updated = { ...prev }
+                                            delete updated[folder]
+                                            return updated
+                                        })
+                                        // remove from openFolders too
+                                        setOpenFolders(prev => {
+                                            const updated = { ...prev }
+                                            delete updated[folder]
+                                            return updated
+                                        })
+                                        // clear selected file if it was in this folder
+                                        if (selectedFile && selectedFile.startsWith(folder + '/')) {
+                                            setSelectedFile(null)
+                                            setFileContents({ a: null, b: null })
+                                            setDiff(null)
+                                        }
+                                        // remove notes for all files in this folder
+                                        setNotes(prev => {
+                                            const updated = { ...prev }
+                                            for (const key of Object.keys(updated)) {
+                                                if (key.startsWith(folder + '/')) delete updated[key]
+                                            }
+                                            return updated
+                                        })
+                                    }}
+                                    open={openFolders[folder]}
                                 >
-                                    {openFolders[folder] ? '▼' : '▶'} {folder}
-                                </div>
+                                </T.FolderRow>
                                 {openFolders[folder] && (
                                     <div style={{ paddingLeft: '16px' }}>
                                         {selectedPairs[folder].map(({ fileName, tag }) => (
-                                            <div
+                                            <T.FileRow
                                                 key={fileName}
-                                                style={{ padding: '2px 4px', cursor: tag === null ? 'pointer' : 'default', color: fileHashes[folder + '/' + fileName]?.changed ? '#f87171' : 'inherit' }}
-                                            ><span style={{ cursor: 'pointer', flex: 1 }} onClick={() => {
-                                                const fullPath = folder + '/' + fileName
-                                                setSelectedFile(fullPath)
-                                                openFile(fullPath)
-                                            }}>{fileName}</span>
-
-                                                <span
-                                                    style={{ cursor: 'pointer', color: '#888', fontSize: '10px', marginLeft: '4px' }}
-                                                    onClick={() => {
-                                                        setSelectedPairs(prev => {
-                                                            const updated = { ...prev }
-                                                            updated[folder] = updated[folder].filter(f => f.fileName !== fileName)
-                                                            if (updated[folder].length === 0) delete updated[folder]
-                                                            return updated
-                                                        })
-                                                        // clear selected file if it was the one removed
-                                                        const removedPath = folder + '/' + fileName
-                                                        if (selectedFile === removedPath) {
-                                                            setSelectedFile(null)
-                                                            setFileContents({ a: null, b: null })
-                                                            setDiff(null)
-                                                        }
-                                                        // remove notes for that file
-                                                        setNotes(prev => {
-                                                            const updated = { ...prev }
-                                                            delete updated[removedPath]
-                                                            return updated
-                                                        })
-                                                    }}
-                                                >
-                                                    ✕
-                                                </span>
+                                                fileName={fileName}
+                                                changed={fileHashes[folder + '/' + fileName]?.changed}
+                                                selected={selectedFile === folder + '/' + fileName ? true : false}
+                                                onClick={() => {
+                                                    const fullPath = folder + '/' + fileName
+                                                    setSelectedFile(fullPath)
+                                                    openFile(fullPath)
+                                                }}
+                                                onRemove={() => {
+                                                    setSelectedPairs(prev => {
+                                                        const updated = { ...prev }
+                                                        updated[folder] = updated[folder].filter(f => f.fileName !== fileName)
+                                                        if (updated[folder].length === 0) delete updated[folder]
+                                                        return updated
+                                                    })
+                                                    // clear selected file if it was the one removed
+                                                    const removedPath = folder + '/' + fileName
+                                                    if (selectedFile === removedPath) {
+                                                        setSelectedFile(null)
+                                                        setFileContents({ a: null, b: null })
+                                                        setDiff(null)
+                                                    }
+                                                    // remove notes for that file
+                                                    setNotes(prev => {
+                                                        const updated = { ...prev }
+                                                        delete updated[removedPath]
+                                                        return updated
+                                                    })
+                                                }}
+                                            >
                                                 {tag && (
                                                     <span style={{ marginLeft: '6px', fontSize: '10px', color: tag === 'A' ? '#f87171' : '#60a5fa' }}>
                                                         [{tag}]
                                                     </span>
                                                 )}
-                                            </div>
+                                            </T.FileRow>
                                         ))}
                                     </div>
                                 )}
                             </div>
                         ))}
-                    </div>
+                    </T.PanelSection>
 
                     {/* Notes panel - bottom half */}
-                    <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
-                        <h4>Notes</h4>
-                        <p style={{ color: '#888', fontSize: '12px' }}>
-                            {!selectedFile ? (
-                                <p style={{ color: '#888', fontSize: '12px' }}>Select a file to see notes</p>
-                            ) : (
-                                <textarea
-                                    style={{ flex: 1, background: '#2a2a2a', color: '#fff', border: '1px solid #444', padding: '8px', resize: 'none' }}
-                                    placeholder="Add notes for this file..."
-                                    value={notes[selectedFile] || ''}
-                                    onChange={e => setNotes(prev => ({ ...prev, [selectedFile]: e.target.value }))}
-                                />
-                            )}
-                        </p>
-                    </div>
-                </div>
+                    <T.PanelSection>
+                        <T.PanelHeader>Notes</T.PanelHeader>
+                        {!selectedFile ? (
+                            <p style={{ color: `${T.theme.textMuted}`, fontSize: '12px', padding: '8px 4px 6px' }}>Select a file to see notes</p>
+                        ) : (
+                            <textarea
+                                style={{
+                                    width: '100%',
+                                    flex: 1,
+                                    background: T.theme.bgInput,
+                                    color: T.theme.text,
+                                    border: `1px solid ${T.theme.border}`,
+                                    padding: '8px',
+                                    resize: 'none',
+                                    fontFamily: "'Consolas', monospace",
+                                    fontSize: '12px',
+                                    borderRadius: '3px',
+                                    outline: 'none',
+                                    minHeight: '120px'
+                                }}
+                                placeholder="Add notes for this file..."
+                                value={notes[selectedFile] || ''}
+                                onChange={e => setNotes(prev => ({ ...prev, [selectedFile]: e.target.value }))}
+                            />
+                        )}
+
+                    </T.PanelSection>
+                </T.Panel>
 
                 {/* Center panel */}
                 <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
@@ -318,58 +358,64 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
                     ) : (
                         <>
                             {/* Version A */}
-                            <div style={{ flex: 1, overflowY: 'auto', borderRight: '1px solid #444', padding: '8px' }}>
-                                <div style={{ marginBottom: '8px', color: '#888', fontSize: '12px' }}>
-                                    {project.versionA.label} — {selectedFile}
-                                </div>
+                            <T.DiffPanel>
+                                <T.DiffHeader>
+                                    Version A — {selectedFile}
+                                </T.DiffHeader>
                                 {diff.map((line, i) => (
                                     <pre key={`a-${i}`}
                                         onMouseEnter={() => setHoveredLine(i)}
                                         onMouseLeave={() => setHoveredLine(null)} style={{
                                             margin: 0,
                                             fontSize: '12px',
-                                            backgroundColor: line.removed ? 'rgb(190, 66, 66)' : line.added ? 'rgba(71, 171, 110, 0.15)' : 'transparent',
+                                            backgroundColor: line.removed ? `${T.theme.diffRemoved}` : line.added ? `${T.theme.diffAddedDim}` : 'transparent',
                                             whiteSpace: 'pre-wrap',
-                                            outline: hoveredLine === i ? '1px solid yellow' : 'none'
+                                            outline: hoveredLine === i ? '3px solid orange' : 'none'
                                         }}>
                                         {line.added ? ' ' : line.line || ' '}
                                     </pre>
                                 ))}
-                            </div>
+                            </T.DiffPanel>
 
                             {/* Version B */}
-                            <div style={{ flex: 1, overflowY: 'auto', padding: '8px' }}>
-                                <div style={{ marginBottom: '8px', color: '#888', fontSize: '12px' }}>
-                                    {project.versionB.label} — {selectedFile}
-                                </div>
+                            <T.DiffPanel>
+                                <T.DiffHeader>
+                                    Version B — {selectedFile}
+                                </T.DiffHeader>
                                 {diff.map((line, i) => (
                                     <pre key={`a-${i}`}
                                         onMouseEnter={() => setHoveredLine(i)}
                                         onMouseLeave={() => setHoveredLine(null)} style={{
                                             margin: 0,
                                             fontSize: '12px',
-                                            backgroundColor: line.added ? 'rgb(71, 171, 110)' : line.removed ? 'rgba(190, 66, 66, 0.15)' : 'transparent',
+                                            backgroundColor: line.added ? `${T.theme.diffAdded}` : line.removed ? `${T.theme.diffRemovedDim}` : 'transparent',
                                             whiteSpace: 'pre-wrap',
-                                            outline: hoveredLine === i ? '1px solid yellow' : 'none'
+                                            outline: hoveredLine === i ? '3px solid orange' : 'none'
                                         }}>
                                         {line.removed ? ' ' : line.line || ' '}
                                     </pre>
                                 ))}
-                            </div>
+                            </T.DiffPanel>
                         </>
                     )}
                 </div>
-            </div>
+            </div >
 
-            {showFilePicker && (
-                <FilePicker
-                    fileTree={availableTree}
-                    onConfirm={handleFilePickerConfirm}
-                    onClose={() => setShowFilePicker(false)}
-                />
-            )}
+            <T.StatusBar>
+                v1.0.0
+            </T.StatusBar>
 
-        </div>
+            {
+                showFilePicker && (
+                    <FilePicker
+                        fileTree={availableTree}
+                        onConfirm={handleFilePickerConfirm}
+                        onClose={() => setShowFilePicker(false)}
+                    />
+                )
+            }
+
+        </div >
     )
 }
 

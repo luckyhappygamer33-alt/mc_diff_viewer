@@ -43,8 +43,14 @@ ul {
   list-style: none;
 }
 
+#root {
+  width: 100%;
+  height: 100vh;
+}
+
 body {
   min-height: 100vh;
+  width: 100%;
   color: var(--color-text);
   background: var(--color-background);
   line-height: 1.6;

@@ -1,5 +1,6 @@
 /* eslint-disable */
 import { useState } from 'react'
+import * as T from '../theme'
 
 function FilePicker({ fileTree, onConfirm, onClose }) {
     const [checked, setChecked] = useState({})
@@ -34,50 +35,54 @@ function FilePicker({ fileTree, onConfirm, onClose }) {
     }
 
     return (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: '#1a1a1a', zIndex: 100, display: 'flex', flexDirection: 'column', padding: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '16px' }}>
-                <button onClick={onClose}>← Back</button>
-                <h2 style={{ margin: '0 16px' }}>Select files to compare</h2>
-                <span style={{ color: '#888' }}>Selected: {selectedCount} files</span>
-                <button onClick={handleConfirm} disabled={selectedCount === 0} style={{ marginLeft: 'auto' }}>
-                    Confirm
-                </button>
-            </div>
+        <div style={{ position: 'fixed', inset: 0, background: T.theme.bg, zIndex: 100, display: 'flex', flexDirection: 'column', fontFamily: "'Consolas', monospace" }}>
 
-            <div style={{ overflowY: 'auto', flex: 1 }}>
+            <T.TopBar>
+                <T.Btn variant="secondary" onClick={onClose}>← Back</T.Btn>
+                <span style={{ fontSize: '13px', color: T.theme.text, marginLeft: '8px' }}>
+                    Select files to compare
+                </span>
+                <div style={{ flex: 1 }} />
+                <span style={{ fontSize: '12px', color: T.theme.textMuted, marginRight: '12px' }}>
+                    {selectedCount} selected
+                </span>
+                <T.Btn variant="primary" onClick={handleConfirm} disabled={selectedCount === 0}>
+                    Confirm
+                </T.Btn>
+            </T.TopBar>
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
                 {Object.keys(fileTree).sort().map(folder => (
                     <div key={folder}>
-                        <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', padding: '2px 4px', userSelect: 'none' }}>
-                            <span onClick={() => toggleFolder(folder)}>
-                                {openFolders[folder] ? '▼' : '▶'} {folder}
-                            </span>
-                            <input
-                                type="checkbox"
-                                style={{ marginLeft: '8px' }}
-                                checked={fileTree[folder].every(({ fileName }) => checked[folder + '/' + fileName])}
-                                onChange={() => toggleFolderFiles(folder)}
-                            />
-                        </div>
-
+                        <T.CheckFolderRow
+                            label={folder}
+                            open={openFolders[folder]}
+                            onToggle={() => toggleFolder(folder)}
+                            checked={fileTree[folder].every(({ fileName }) => checked[folder + '/' + fileName])}
+                            onCheck={() => toggleFolderFiles(folder)}
+                        />
                         {openFolders[folder] && (
                             <div style={{ paddingLeft: '16px' }}>
                                 {fileTree[folder].map(({ fileName }) => (
-                                    <div key={fileName} style={{ display: 'flex', alignItems: 'center', padding: '2px 4px' }}>
-                                        <input
-                                            type="checkbox"
-                                            checked={!!checked[folder + '/' + fileName]}
-                                            onChange={() => toggleFile(folder + '/' + fileName)}
-                                        />
-                                        <span style={{ marginLeft: '6px' }}>{fileName}</span>
-                                    </div>
+                                    <T.CheckFileRow
+                                        key={fileName}
+                                        fileName={fileName}
+                                        checked={!!checked[folder + '/' + fileName]}
+                                        onChange={() => toggleFile(folder + '/' + fileName)}
+                                    />
                                 ))}
                             </div>
                         )}
                     </div>
                 ))}
             </div>
+
+            <T.StatusBar>
+                {selectedCount === 0 ? 'No files selected' : `${selectedCount} file${selectedCount === 1 ? '' : 's'} selected`}
+            </T.StatusBar>
+
         </div>
     )
 }
 
-export default FilePicker;
+export default FilePicker
