@@ -72,60 +72,6 @@ function SetupWizard({ onProjectReady, onBack }) {
 
                     </div>
 
-                    {/* <div style={{ textAlign: 'center' }}>
-                        <h2 style={{ fontSize: '20px', fontWeight: 400, margin: 0 }}>New <span style={{ color: T.theme.accent }}>Project</span></h2>
-                    </div> */}
-
-                    {/* Project name */}
-                    {/* <div style={T.styles.row}>
-                        <label style={T.styles.label}>PROJECT NAME</label>
-                        <input
-                            value={name}
-                            onChange={e => setName(e.target.value)}
-                            placeholder="e.g. 1.20 → 1.20.2"
-                            style={T.styles.inputStyle}
-                        />
-                    </div> */}
-
-                    {/* Jar A */}
-                    {/* <div style={T.styles.row}>
-                        <label style={T.styles.label}>VERSION A — sources jar</label>
-                        <div style={T.styles.jarRow}>
-                            <T.Btn variant="secondary"
-                                onClick={handlePickJarA}
-                            >
-                                Browse
-                            </T.Btn>
-                            <span style={{ fontSize: '11px', color: jarA ? T.theme.text : T.theme.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {jarA ?? 'Not selected'}
-                            </span>
-
-                        </div>
-                    </div> */}
-
-                    {/* Jar B */}
-                    {/* <div style={T.styles.row}>
-                        <label style={T.styles.label}>VERSION B — sources jar</label>
-                        <div style={T.styles.jarRow}>
-                            <T.Btn variant="secondary"
-                                onClick={handlePickJarB}
-                            >
-                                Browse
-                            </T.Btn>
-                            <span style={{ fontSize: '11px', color: jarB ? T.theme.text : T.theme.textMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {jarB ?? 'Not selected'}
-                            </span>
-                        </div>
-                    </div> */}
-
-                    {/* Create button */}
-                    {/* <T.Btn variant="primary"
-                        onClick={handleCreate}
-                        disabled={!name || !jarA || !jarB}
-                    >
-                        Create Project
-                    </T.Btn> */}
-
                 </div>
             </div>
 

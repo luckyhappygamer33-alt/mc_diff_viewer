@@ -55,7 +55,6 @@ function MainEditor({ project, onProjectChange, onProjectClose }) {
     const [diff, setDiff] = useState(null)
     const [showFilePicker, setShowFilePicker] = useState(false)
     const [selectedPairs, setSelectedPairs] = useState({})
-    const [hoveredLine, setHoveredLine] = useState(null)
     const [notes, setNotes] = useState({})
 
     const panelARef = useRef(null)
