@@ -12,6 +12,7 @@ function createWindow() {
     height: 900,
     show: false,
     autoHideMenuBar: true,
+    icon: join(__dirname, '../../resources/icon.png'),
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -84,7 +85,7 @@ ipcMain.handle('save-project', async (_event, content) => {
 })
 
 app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.electron')
+  electronApp.setAppUserModelId('com.cat_metalhead_mc_diff_viewer')
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

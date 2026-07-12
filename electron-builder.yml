@@ -1,4 +1,4 @@
-appId: com.electron.app
+appId: com.cat_metalhead.mc_diff_viewer
 productName: mc_diff_viewer
 directories:
   buildResources: build
@@ -12,6 +12,7 @@ asarUnpack:
   - resources/**
 win:
   executableName: mc_diff_viewer
+  icon: build/icon.ico
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
   shortcutName: ${productName}
@@ -37,6 +38,4 @@ linux:
 appImage:
   artifactName: ${name}-${version}.${ext}
 npmRebuild: false
-publish:
-  provider: generic
-  url: https://example.com/auto-updates
+publish: null

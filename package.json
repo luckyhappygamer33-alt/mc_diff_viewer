@@ -1,10 +1,10 @@
 {
   "name": "mc_diff_viewer",
   "version": "1.0.0",
-  "description": "An Electron application with React",
+  "description": "Minecraft Source Code Differences Viewer",
   "main": "./out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": "cat_metalhead",
+  "homepage": "",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
